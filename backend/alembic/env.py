@@ -8,6 +8,7 @@ from sqlalchemy.ext.asyncio import async_engine_from_config
 from alembic import context
 from app.config import get_settings
 from app.db.base import Base
+from app.db.session import _connect_args
 
 # this is the Alembic Config object, which provides
 # access to the values within the .ini file in use.
@@ -25,8 +26,10 @@ if settings.database_url is None:
     raise RuntimeError("DATABASE_URL must be set to run migrations (see backend/.env.example)")
 config.set_main_option("sqlalchemy.url", settings.database_url)
 
-# Autogenerate compares this metadata against the live database.
-# Importing app.db.models here is what registers the tables on Base.
+# Autogenerate compares this metadata against the live database. The models import is
+# what registers the tables on Base, so it must happen even though it looks unused.
+import app.db.models  # noqa: E402, F401
+
 target_metadata = Base.metadata
 
 
@@ -71,6 +74,9 @@ async def run_async_migrations() -> None:
         config.get_section(config.config_ini_section, {}),
         prefix="sqlalchemy.",
         poolclass=pool.NullPool,
+        # Hosted Postgres requires TLS, and asyncpg takes it as a connect argument
+        # rather than a URL parameter.
+        connect_args=_connect_args(settings.database_url),
     )
 
     async with connectable.connect() as connection:

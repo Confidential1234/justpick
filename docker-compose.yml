@@ -2,7 +2,7 @@
 
 services:
   db:
-    image: postgres:16-alpine
+    image: postgres:18-alpine  # matches the hosted database
     environment:
       POSTGRES_USER: justpick
       POSTGRES_PASSWORD: justpick

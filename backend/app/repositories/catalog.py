@@ -183,6 +183,40 @@ async def enabled_providers(db: AsyncSession) -> list[Provider]:
     return list(result.scalars())
 
 
+async def get_movie(db: AsyncSession, tmdb_id: int) -> Movie | None:
+    """A cached movie with its genre and provider links eagerly loaded."""
+    return await db.get(Movie, tmdb_id)
+
+
+async def providers_for_movie(
+    db: AsyncSession, tmdb_id: int, provider_ids: Sequence[int], region: str = "US"
+) -> list[Provider]:
+    """Which of the given services carry this film, per the cache."""
+    if not provider_ids:
+        return []
+    result = await db.execute(
+        select(Provider)
+        .join(MovieProvider, MovieProvider.provider_id == Provider.id)
+        .where(
+            MovieProvider.movie_id == tmdb_id,
+            MovieProvider.region == region,
+            Provider.id.in_(provider_ids),
+        )
+        .order_by(Provider.name)
+    )
+    return list(result.scalars())
+
+
+async def genres_for_movie(db: AsyncSession, tmdb_id: int) -> list[Genre]:
+    result = await db.execute(
+        select(Genre)
+        .join(MovieGenre, MovieGenre.genre_id == Genre.id)
+        .where(MovieGenre.movie_id == tmdb_id)
+        .order_by(Genre.name)
+    )
+    return list(result.scalars())
+
+
 async def all_genres(db: AsyncSession) -> list[Genre]:
     return list((await db.execute(select(Genre).order_by(Genre.name))).scalars())
 

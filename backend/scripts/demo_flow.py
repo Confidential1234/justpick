@@ -43,13 +43,12 @@ def show(label: str, outcome: decision_service.DecisionOutcome) -> None:
         for constraint, count in outcome.relaxation.items():
             print(f"    relaxing {constraint.value:<8} -> {count:,} movies")
         return
-    movie = outcome.decision.movie
-    details = outcome.details
-    assert movie is not None and details is not None
-    runtime = f"{details.runtime_minutes} min" if details.runtime_minutes else "runtime ?"
-    services = ", ".join(p.name for p in outcome.available_on) or "unknown"
+    view = outcome.movie
+    assert view is not None
+    runtime = f"{view.runtime_minutes} min" if view.runtime_minutes else "runtime ?"
+    services = ", ".join(p.name for p in view.providers) or "unknown"
     print(
-        f"{label}: {movie.title} ({runtime}, {movie.vote_average:.1f})"
+        f"{label}: {view.title} ({runtime}, {view.vote_average:.1f})"
         f"  score {outcome.decision.breakdown.total:.3f}"  # type: ignore[union-attr]
         f"  top {outcome.decision.band_size}/{outcome.decision.candidate_count}"
     )

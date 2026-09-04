@@ -1,16 +1,42 @@
 """Candidate sourcing: TMDb for breadth, the cache for the parts TMDb leaves out."""
 
 import asyncio
+from collections.abc import Iterator
+from contextlib import contextmanager
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.engine.models import CandidateMovie, Constraint, DecisionRequest
 from app.repositories import catalog as repo
+from app.services.errors import UpstreamFailure, UpstreamUnavailable
+from app.services.views import (
+    GenreOption,
+    MovieView,
+    ProviderOption,
+    from_row,
+    image_url,
+)
 from app.tmdb.client import DiscoverFilters, TMDbClient
+from app.tmdb.errors import TMDbAuthError, TMDbRequestError, TMDbUnavailable
 from app.tmdb.mappers import to_candidate
 from app.tmdb.models import DiscoverMovie, MovieDetails
 
 PAGES = 3
+
+
+@contextmanager
+def _upstream() -> Iterator[None]:
+    """Translate TMDb failures into service-level ones.
+
+    Keeps the name of the movie source out of everything above this layer — swapping
+    provider should not touch the API's error handling.
+    """
+    try:
+        yield
+    except TMDbUnavailable as exc:
+        raise UpstreamUnavailable(str(exc)) from exc
+    except (TMDbAuthError, TMDbRequestError) as exc:
+        raise UpstreamFailure(str(exc)) from exc
 
 
 def _filters(request: DecisionRequest, region: str = "US") -> DiscoverFilters:
@@ -50,9 +76,10 @@ async def fetch_candidates(
     warms rather than being permanently inert.
     """
     filters = _filters(request, region)
-    first = await client.discover(filters, page=1)
-    remaining = range(2, min(PAGES, first.total_pages) + 1)
-    others = await asyncio.gather(*(client.discover(filters, page=n) for n in remaining))
+    with _upstream():
+        first = await client.discover(filters, page=1)
+        remaining = range(2, min(PAGES, first.total_pages) + 1)
+        others = await asyncio.gather(*(client.discover(filters, page=n) for n in remaining))
 
     unique: dict[int, DiscoverMovie] = {}
     for page in (first, *others):
@@ -78,7 +105,8 @@ async def hydrate(
     client: TMDbClient, db: AsyncSession, tmdb_id: int, region: str = "US"
 ) -> MovieDetails:
     """Fetch the chosen film's runtime and availability, and remember both."""
-    details = await client.movie_details(tmdb_id, region=region)
+    with _upstream():
+        details = await client.movie_details(tmdb_id, region=region)
     await repo.set_movie_details(db, tmdb_id, details.runtime_minutes)
     await repo.record_availability(db, tmdb_id, sorted(details.provider_ids), region=region)
     return details
@@ -105,6 +133,8 @@ async def relaxation_counts(
             **{**vars_of(base), "genre_ids": frozenset()}
         )
 
+    # return_exceptions: a hint that cannot be computed is a missing suggestion, not a
+    # failed request. The user is already looking at an empty result.
     pages = await asyncio.gather(
         *(client.discover(f, page=1) for f in variants.values()), return_exceptions=True
     )
@@ -118,3 +148,35 @@ async def relaxation_counts(
 def vars_of(filters: DiscoverFilters) -> dict[str, object]:
     """dataclasses.asdict would deep-copy the frozensets; this keeps them as-is."""
     return {field: getattr(filters, field) for field in filters.__slots__}
+
+
+# ------------------------------------------------------------------ reference lookups
+
+
+async def list_providers(db: AsyncSession) -> list[ProviderOption]:
+    """The services the UI offers. Only the enabled ones, not TMDb's full list of ~290."""
+    return [
+        ProviderOption(id=p.id, name=p.name, logo_url=image_url(p.logo_path, size="original"))
+        for p in await repo.enabled_providers(db)
+    ]
+
+
+async def list_genres(db: AsyncSession) -> list[GenreOption]:
+    return [GenreOption(id=g.id, name=g.name) for g in await repo.all_genres(db)]
+
+
+async def movie_view(
+    db: AsyncSession, tmdb_id: int, provider_ids: frozenset[int], region: str = "US"
+) -> MovieView | None:
+    """Rebuild a movie's presentation from the cache, for re-reading an earlier decision."""
+    row = await repo.get_movie(db, tmdb_id)
+    if row is None:
+        return None
+    genres = tuple(
+        GenreOption(id=g.id, name=g.name) for g in await repo.genres_for_movie(db, tmdb_id)
+    )
+    providers = tuple(
+        ProviderOption(id=p.id, name=p.name, logo_url=image_url(p.logo_path, size="original"))
+        for p in await repo.providers_for_movie(db, tmdb_id, sorted(provider_ids), region)
+    )
+    return from_row(row, genres, providers)

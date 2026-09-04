@@ -11,14 +11,16 @@ from datetime import date
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.db.models import DecisionRequestRow, FeedbackAction
+from app.db.models import DecisionRequestRow, FeedbackAction, Recommendation
 from app.engine import CandidateMovie, Decision, DecisionRequest, decide
 from app.engine.models import Constraint, DecisionReason
 from app.repositories import decisions as decisions_repo
 from app.repositories import sessions as sessions_repo
 from app.services import catalog
+from app.services.errors import AlreadyDecided, RecommendationMismatch, RequestNotFound
+from app.services.views import MovieView, ProviderOption, from_details, image_url
 from app.tmdb.client import TMDbClient
-from app.tmdb.models import MovieDetails, TMDbProvider
+from app.tmdb.models import MovieDetails
 
 
 @dataclass(slots=True)
@@ -27,11 +29,10 @@ class DecisionOutcome:
     attempt: int
     decision: Decision
     recommendation_id: uuid.UUID | None = None
-    details: MovieDetails | None = None
-    # Only the services the user actually subscribes to. TMDb lists every flatrate
-    # carrier, so a film can come back "on Paramount+, Philo, fuboTV..." — telling
-    # someone their movie is on a service they do not have is worse than saying nothing.
-    available_on: tuple[TMDbProvider, ...] = ()
+    movie: MovieView | None = None
+    # Carried through so the explanation can name the genres the user asked for, rather
+    # than whichever genres the film happens to be tagged with.
+    requested_genre_ids: frozenset[int] = frozenset()
     relaxation: dict[Constraint, int] = field(default_factory=dict)
 
     @property
@@ -185,6 +186,7 @@ async def _answer(
             request_id=row.id,
             attempt=attempt,
             decision=decision,
+            requested_genre_ids=request.genre_ids,
             relaxation=await catalog.relaxation_counts(client, request, region=region),
         )
 
@@ -199,15 +201,21 @@ async def _answer(
         candidate_count=decision.candidate_count,
         band_size=decision.band_size,
     )
+    # Only the services the user actually subscribes to. TMDb lists every flatrate
+    # carrier, so a film can come back "on Paramount+, Philo, fuboTV..." — naming a
+    # service someone does not have is worse than naming none.
+    available_on = tuple(
+        ProviderOption(id=p.id, name=p.name, logo_url=image_url(p.logo_path, size="original"))
+        for p in details.flatrate_providers
+        if p.id in request.provider_ids
+    )
     return DecisionOutcome(
         request_id=row.id,
         attempt=attempt,
         decision=decision,
         recommendation_id=recommendation.id,
-        details=details,
-        available_on=tuple(
-            p for p in details.flatrate_providers if p.id in request.provider_ids
-        ),
+        movie=from_details(details, available_on),
+        requested_genre_ids=request.genre_ids,
     )
 
 
@@ -240,4 +248,113 @@ async def reject(
         action=FeedbackAction.REJECTED,
         reason=reason,
         note=note,
+    )
+
+
+# ----------------------------------------------------------------- request-level flows
+#
+# The API calls these rather than the pieces above, so routes never hold an ORM row and
+# never have to know the ordering rules (verdict recorded before the next pick).
+
+
+async def _owned_recommendation(
+    db: AsyncSession, *, request_id: uuid.UUID, recommendation_id: uuid.UUID
+) -> Recommendation:
+    recommendation = await decisions_repo.get_recommendation(db, recommendation_id)
+    if recommendation is None or recommendation.request_id != request_id:
+        raise RecommendationMismatch(str(recommendation_id))
+    if await decisions_repo.existing_feedback(db, recommendation_id) is not None:
+        raise AlreadyDecided(str(recommendation_id))
+    return recommendation
+
+
+async def _owned_request(
+    db: AsyncSession, *, request_id: uuid.UUID, session_id: uuid.UUID
+) -> DecisionRequestRow:
+    row = await decisions_repo.get_request(db, request_id)
+    if row is None or row.session_id != session_id:
+        # Same response either way: a wrong session must not reveal that the id exists.
+        raise RequestNotFound(str(request_id))
+    return row
+
+
+async def reject_and_next(
+    db: AsyncSession,
+    client: TMDbClient,
+    *,
+    request_id: uuid.UUID,
+    session_id: uuid.UUID,
+    recommendation_id: uuid.UUID,
+    reason: str,
+    note: str | None = None,
+) -> DecisionOutcome:
+    row = await _owned_request(db, request_id=request_id, session_id=session_id)
+    recommendation = await _owned_recommendation(
+        db, request_id=request_id, recommendation_id=recommendation_id
+    )
+    await reject(
+        db,
+        recommendation_id=recommendation_id,
+        session_id=session_id,
+        movie_id=recommendation.movie_id,
+        reason=reason,
+        note=note,
+    )
+    return await next_pick(db, client, row=row, session_id=session_id, region=row.region)
+
+
+async def accept_recommendation(
+    db: AsyncSession,
+    *,
+    request_id: uuid.UUID,
+    session_id: uuid.UUID,
+    recommendation_id: uuid.UUID,
+) -> MovieView:
+    row = await _owned_request(db, request_id=request_id, session_id=session_id)
+    recommendation = await _owned_recommendation(
+        db, request_id=request_id, recommendation_id=recommendation_id
+    )
+    await accept(
+        db,
+        recommendation_id=recommendation_id,
+        session_id=session_id,
+        movie_id=recommendation.movie_id,
+    )
+    view = await catalog.movie_view(
+        db, recommendation.movie_id, frozenset(row.provider_ids), region=row.region
+    )
+    if view is None:
+        raise RequestNotFound(str(request_id))
+    return view
+
+
+@dataclass(slots=True)
+class DecisionState:
+    request_id: uuid.UUID
+    attempt: int
+    status: str
+    recommendation_id: uuid.UUID | None = None
+    movie: MovieView | None = None
+
+
+async def get_state(
+    db: AsyncSession, *, request_id: uuid.UUID, session_id: uuid.UUID
+) -> DecisionState:
+    """The current standing of a request, for a page refresh or a deep link."""
+    row = await _owned_request(db, request_id=request_id, session_id=session_id)
+    recommendation = await decisions_repo.latest_recommendation(db, request_id)
+    if recommendation is None:
+        return DecisionState(request_id=request_id, attempt=0, status="empty")
+
+    feedback = await decisions_repo.existing_feedback(db, recommendation.id)
+    status = feedback.action.value if feedback is not None else "pending"
+    view = await catalog.movie_view(
+        db, recommendation.movie_id, frozenset(row.provider_ids), region=row.region
+    )
+    return DecisionState(
+        request_id=request_id,
+        attempt=recommendation.attempt,
+        status=status,
+        recommendation_id=recommendation.id,
+        movie=view,
     )

@@ -1,0 +1,67 @@
+{
+  "adult": false,
+  "backdrop_path": "/c4U96GrPRfnNrS01mBtqnocvlLJ.jpg",
+  "budget": 0,
+  "genres": [
+    {
+      "id": 80,
+      "name": "Crime"
+    },
+    {
+      "id": 28,
+      "name": "Action"
+    },
+    {
+      "id": 53,
+      "name": "Thriller"
+    }
+  ],
+  "homepage": "https://www.netflix.com/title/82048151",
+  "id": 1621552,
+  "imdb_id": "tt39390497",
+  "origin_country": [
+    "MX"
+  ],
+  "original_language": "es",
+  "original_title": "La captura",
+  "overview": "Two Mexican officers must survive the final hours of their shift after crossing a ruthless cartel boss.",
+  "popularity": 230.3441,
+  "poster_path": "/z8eF0ACFFKtIZ4pUeo02PCzxRVO.jpg",
+  "production_countries": [
+    {
+      "iso_3166_1": "MX",
+      "name": "Mexico"
+    }
+  ],
+  "release_date": "2026-08-21",
+  "revenue": 0,
+  "runtime": 91,
+  "softcore": false,
+  "status": "Released",
+  "tagline": "",
+  "title": "Facing El Chapo",
+  "video": false,
+  "vote_average": 8.837,
+  "vote_count": 492,
+  "watch/providers": {
+    "results": {
+      "US": {
+        "link": "https://www.themoviedb.org/movie/1621552-la-captura/watch?locale=US",
+        "flatrate": [
+          {
+            "logo_path": "/rK1KljqmbvO9HQa1PBFLILWah72.png",
+            "provider_id": 8,
+            "provider_name": "Netflix",
+            "display_priority": 0
+          },
+          {
+            "logo_path": "/eGUwOOIxcazwEBxqJpSN5sWEu6V.png",
+            "provider_id": 1796,
+            "provider_name": "Netflix Standard with Ads",
+            "display_priority": 151
+          }
+        ]
+      }
+    }
+  }
+}

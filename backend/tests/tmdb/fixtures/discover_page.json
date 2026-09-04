@@ -1,0 +1,113 @@
+{
+  "page": 1,
+  "results": [
+    {
+      "adult": false,
+      "backdrop_path": "/c4U96GrPRfnNrS01mBtqnocvlLJ.jpg",
+      "genre_ids": [
+        80,
+        28,
+        53
+      ],
+      "id": 1621552,
+      "title": "Facing El Chapo",
+      "original_language": "es",
+      "original_title": "La captura",
+      "overview": "Two Mexican officers must survive the final hours of their shift after crossing a ruthless cartel boss.",
+      "popularity": 230.3441,
+      "poster_path": "/z8eF0ACFFKtIZ4pUeo02PCzxRVO.jpg",
+      "release_date": "2026-08-21",
+      "softcore": false,
+      "video": false,
+      "vote_average": 8.84,
+      "vote_count": 494
+    },
+    {
+      "adult": false,
+      "backdrop_path": "/iZLqwEwUViJdSkGVjePGhxYzbDb.jpg",
+      "genre_ids": [
+        878,
+        53
+      ],
+      "id": 755898,
+      "title": "War of the Worlds",
+      "original_language": "en",
+      "original_title": "War of the Worlds",
+      "overview": "Will Radford is a top analyst for Homeland Security who tracks potential threats through a mass surveillance program, until one day an attack by an unknown entity leads him to question whether the government is hiding something from him... and from the rest of the world.",
+      "popularity": 87.8822,
+      "poster_path": "/yvirUYrva23IudARHn3mMGVxWqM.jpg",
+      "release_date": "2025-07-29",
+      "softcore": false,
+      "video": false,
+      "vote_average": 4.031,
+      "vote_count": 1117
+    },
+    {
+      "adult": false,
+      "backdrop_path": "/1RhfevWmWCVHtEqxWBEjPOC5KG1.jpg",
+      "genre_ids": [
+        27,
+        878,
+        53
+      ],
+      "id": 1284041,
+      "title": "The Last House",
+      "original_language": "en",
+      "original_title": "The Last House",
+      "overview": "A family suddenly sealed inside their home must work together to survive against dwindling resources and the ominous threat keeping them trapped.",
+      "popularity": 71.9621,
+      "poster_path": "/6JU7E8Vv2M11egkctWVOScxWR75.jpg",
+      "release_date": "2026-08-06",
+      "softcore": false,
+      "video": false,
+      "vote_average": 6.891,
+      "vote_count": 1221
+    },
+    {
+      "adult": false,
+      "backdrop_path": "/8mnXR9rey5uQ08rZAvzojKWbDQS.jpg",
+      "genre_ids": [
+        16,
+        28,
+        12,
+        878
+      ],
+      "id": 324857,
+      "title": "Spider-Man: Into the Spider-Verse",
+      "original_language": "en",
+      "original_title": "Spider-Man: Into the Spider-Verse",
+      "overview": "Struggling to find his place in the world while juggling school and family, Brooklyn teenager Miles Morales is unexpectedly bitten by a radioactive spider and develops unfathomable powers just like the one and only Spider-Man. While wrestling with the implications of his new abilities, Miles discovers a super collider created by the madman Wilson \"Kingpin\" Fisk, causing others from across the Spider-Verse to be inadvertently transported to his dimension.",
+      "popularity": 49.8301,
+      "poster_path": "/iiZZdoQBEYBv6id8su7ImL0oCbD.jpg",
+      "release_date": "2018-12-06",
+      "softcore": false,
+      "video": false,
+      "vote_average": 8.399,
+      "vote_count": 17792
+    },
+    {
+      "adult": false,
+      "backdrop_path": "/1pmXyN3sKeYoUhu5VBZiDU4BX21.jpg",
+      "genre_ids": [
+        10751,
+        16,
+        878,
+        12
+      ],
+      "id": 1184918,
+      "title": "The Wild Robot",
+      "original_language": "en",
+      "original_title": "The Wild Robot",
+      "overview": "After a shipwreck, an intelligent robot called Roz is stranded on an uninhabited island. To survive the harsh environment, Roz bonds with the island's animals and cares for an orphaned baby goose.",
+      "popularity": 46.3768,
+      "poster_path": "/wTnV3PCVW5O92JMrFvvrRcV39RU.jpg",
+      "release_date": "2024-09-12",
+      "softcore": false,
+      "video": false,
+      "vote_average": 8.307,
+      "vote_count": 6532
+    }
+  ],
+  "total_pages": 71,
+  "total_results": 1410
+}

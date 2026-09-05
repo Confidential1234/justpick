@@ -25,21 +25,42 @@ crosses a line it shouldn't.
 
 ## Running it
 
+Backend:
+
 ```bash
 cd backend
 python -m venv .venv
 .venv/Scripts/activate          # Windows;  source .venv/bin/activate on macOS/Linux
 pip install -e ".[dev]"
-cp .env.example .env
+cp .env.example .env            # add your TMDb token and database URL
+alembic upgrade head
+python -m scripts.seed          # loads genres and providers from TMDb
 uvicorn app.main:app --reload
 ```
 
 http://localhost:8000/api/v1/health · http://localhost:8000/docs
 
+Frontend, in a second terminal:
+
+```bash
+cd frontend && npm install && npm run dev
+```
+
+http://localhost:5173 — Vite proxies `/api` to the backend, so no CORS setup is needed
+locally.
+
 Checks:
 
 ```bash
 cd backend && ruff check . && pytest -q
+cd frontend && npm run typecheck
+```
+
+There is also a command-line driver for the backend, useful for checking the engine's taste
+against the live catalogue without the UI:
+
+```bash
+cd backend && python -m scripts.preview --genres action,science-fiction --max-runtime 120
 ```
 
 ### Database

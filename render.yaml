@@ -1,0 +1,24 @@
+# Render blueprint for the API. Point a new Blueprint at this repo and Render reads it.
+# The frontend deploys separately on Vercel.
+
+services:
+  - type: web
+    name: justpick-api
+    runtime: docker
+    rootDir: backend
+    dockerfilePath: ./Dockerfile
+    plan: free
+    region: ohio # same region as the Neon database, to keep query latency low
+    healthCheckPath: /api/v1/health
+    autoDeploy: true
+    envVars:
+      # sync: false means "prompt me for this in the dashboard" — these are secrets and
+      # must not live in the repo.
+      - key: DATABASE_URL
+        sync: false
+      - key: TMDB_API_TOKEN
+        sync: false
+      - key: CORS_ORIGINS
+        sync: false
+      - key: APP_ENV
+        value: production

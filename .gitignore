@@ -19,6 +19,7 @@ htmlcov/
 node_modules/
 dist/
 .vite/
+*.tsbuildinfo
 
 # Local editor/tooling config, same treatment as .vscode and .idea below
 .claude/

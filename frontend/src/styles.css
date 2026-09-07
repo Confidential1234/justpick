@@ -320,6 +320,25 @@ button.link {
 
 /* --------------------------------------------------------------------- misc */
 
+.loading {
+  text-align: center;
+  padding: 3rem 1rem;
+  color: var(--muted);
+}
+
+.loading .hint {
+  max-width: 24rem;
+  margin: 0.75rem auto 0;
+  line-height: 1.5;
+}
+
+.hint.centered {
+  display: block;
+  max-width: 24rem;
+  margin: 0.75rem auto 0;
+  line-height: 1.5;
+}
+
 .error {
   background: #2a1618;
   border: 1px solid #5c2b2b;

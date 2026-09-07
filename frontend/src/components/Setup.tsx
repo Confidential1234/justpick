@@ -1,7 +1,11 @@
 import { useEffect, useState } from "react";
 
 import { api } from "../api/client";
+import { useIsSlow } from "../hooks/useIsSlow";
 import type { Constraints, Genre, Provider } from "../types";
+
+const WAKING =
+  "The server sleeps when nobody's using it, so the first request takes about a minute. It's quick after that.";
 
 const RUNTIME_MIN = 60;
 const RUNTIME_MAX = 240;
@@ -28,6 +32,7 @@ export function Setup({ onSubmit, busy, initial }: Props) {
   const [providers, setProviders] = useState<Provider[]>([]);
   const [genres, setGenres] = useState<Genre[]>([]);
   const [loadError, setLoadError] = useState<string | null>(null);
+  const [loading, setLoading] = useState(true);
 
   const [chosenProviders, setChosenProviders] = useState<number[]>(
     initial?.provider_ids ?? [],
@@ -44,8 +49,12 @@ export function Setup({ onSubmit, busy, initial }: Props) {
         // Default to everything they could watch on, so the common case is one tap.
         setChosenProviders((current) => (current.length ? current : p.map((x) => x.id)));
       })
-      .catch((error: Error) => setLoadError(error.message));
+      .catch((error: Error) => setLoadError(error.message))
+      .finally(() => setLoading(false));
   }, []);
+
+  const slowToLoad = useIsSlow(loading);
+  const slowToAnswer = useIsSlow(busy);
 
   function toggle(list: number[], id: number): number[] {
     return list.includes(id) ? list.filter((x) => x !== id) : [...list, id];
@@ -53,6 +62,15 @@ export function Setup({ onSubmit, busy, initial }: Props) {
 
   if (loadError) {
     return <p className="error">{loadError}</p>;
+  }
+
+  if (loading) {
+    return (
+      <section className="loading">
+        <p>Loading…</p>
+        {slowToLoad && <p className="hint">{WAKING}</p>}
+      </section>
+    );
   }
 
   return (
@@ -144,7 +162,8 @@ export function Setup({ onSubmit, busy, initial }: Props) {
       >
         {busy ? "Finding it…" : "Find my movie"}
       </button>
-      {chosenProviders.length === 0 && (
+      {busy && slowToAnswer && <p className="hint centered">{WAKING}</p>}
+      {!busy && chosenProviders.length === 0 && (
         <p className="hint centered">Pick at least one service.</p>
       )}
     </form>

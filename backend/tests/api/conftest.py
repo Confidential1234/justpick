@@ -100,9 +100,7 @@ def movie_view(**overrides: Any) -> MovieView:
 
 
 def decision(**overrides: Any) -> Decision:
-    breakdown = ScoreBreakdown(
-        genre_match=1.0, rating=0.85, confidence=1.0, runtime_fit=0.9, total=0.9385
-    )
+    breakdown = ScoreBreakdown(genre_match=1.0, rating=0.85, runtime_fit=0.9, total=0.9175)
     defaults: dict[str, Any] = {
         "reason": DecisionReason.OK,
         "movie": CandidateMovie(

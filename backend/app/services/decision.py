@@ -55,7 +55,6 @@ def _breakdown_dict(decision: Decision) -> dict[str, float]:
     return {
         "genre_match": float(decision.breakdown.genre_match),
         "rating": float(decision.breakdown.rating),
-        "confidence": float(decision.breakdown.confidence),
         "runtime_fit": float(decision.breakdown.runtime_fit),
         "total": float(decision.breakdown.total),
     }

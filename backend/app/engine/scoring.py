@@ -5,16 +5,12 @@ weights are product judgement, not tuning output — they live in one dict so ch
 app's taste is a one-line diff with a test that fails if the weights stop summing to 1.
 """
 
-import math
-
 from app.engine.models import CandidateMovie, DecisionRequest, Highlight, ScoreBreakdown
 
 WEIGHTS: dict[str, float] = {
     # The only input that is a direct statement of intent; everything else proxies quality.
     "genre_match": 0.40,
-    "rating": 0.30,
-    # Guards `rating` — a 9.1 from 40 voters should not beat a 7.8 from 40,000.
-    "confidence": 0.15,
+    "rating": 0.45,
     "runtime_fit": 0.15,
 }
 
@@ -23,8 +19,14 @@ WEIGHTS: dict[str, float] = {
 RATING_FLOOR = 5.0
 RATING_CEILING = 9.0
 
-# Past this many votes, more votes tell us nothing new.
-CONFIDENCE_SATURATION = 10_000
+# Mean rating across the US Netflix/Prime catalogue, measured from a 200-film sample.
+# Thinly-voted films are pulled toward this.
+POOL_MEAN_RATING = 7.13
+
+# Votes at which a film's own average carries half the weight against the pool mean.
+# The median film in the catalogue has ~3,700 votes and the bottom decile ~560, so a
+# thousand is roughly "enough people have seen this to believe the number".
+RATING_PRIOR_VOTES = 1_000
 
 
 def _clamp(value: float) -> float:
@@ -42,15 +44,25 @@ def genre_match(movie: CandidateMovie, request: DecisionRequest) -> float:
     return len(movie.genre_ids & request.genre_ids) / len(request.genre_ids)
 
 
+def adjusted_rating(movie: CandidateMovie) -> float:
+    """The film's rating, shrunk toward the pool mean in proportion to how few votes back it.
+
+    A raw average is not comparable across sample sizes. TMDb had "The Way to the Heart"
+    at 9.9 from 143 votes while IMDb had it at 5.6 from a similar number — a number that
+    high on a sample that small is noise, or worse. This is the standard weighted-rating
+    correction: it costs a 30,000-vote 8.4 almost nothing (8.36) and takes that 9.9 down
+    to 7.48.
+
+    A minimum-votes cutoff was the first attempt and it does not work — any threshold is
+    arbitrary, and a film one vote above it is treated as fully trustworthy.
+    """
+    votes = max(movie.vote_count, 0)
+    total = votes + RATING_PRIOR_VOTES
+    return (votes * movie.vote_average + RATING_PRIOR_VOTES * POOL_MEAN_RATING) / total
+
+
 def rating(movie: CandidateMovie) -> float:
-    return _clamp((movie.vote_average - RATING_FLOOR) / (RATING_CEILING - RATING_FLOOR))
-
-
-def confidence(movie: CandidateMovie) -> float:
-    if movie.vote_count <= 0:
-        return 0.0
-    capped = min(movie.vote_count, CONFIDENCE_SATURATION)
-    return _clamp(math.log10(capped) / math.log10(CONFIDENCE_SATURATION))
+    return _clamp((adjusted_rating(movie) - RATING_FLOOR) / (RATING_CEILING - RATING_FLOOR))
 
 
 def runtime_fit(movie: CandidateMovie, request: DecisionRequest) -> float:
@@ -68,7 +80,6 @@ def score(movie: CandidateMovie, request: DecisionRequest) -> ScoreBreakdown:
     components = {
         "genre_match": genre_match(movie, request),
         "rating": rating(movie),
-        "confidence": confidence(movie),
         "runtime_fit": runtime_fit(movie, request),
     }
     total = sum(WEIGHTS[name] * value for name, value in components.items())

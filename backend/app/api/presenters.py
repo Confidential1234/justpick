@@ -17,7 +17,6 @@ from app.services.views import MovieView
 _COMPONENT_LABELS = {
     "genre_match": "Matches what you're in the mood for",
     "rating": "Well reviewed",
-    "confidence": "Widely watched",
     "runtime_fit": "Fits the time you have",
 }
 

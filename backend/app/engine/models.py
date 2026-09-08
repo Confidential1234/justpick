@@ -61,7 +61,6 @@ class ScoreBreakdown:
 
     genre_match: float
     rating: float
-    confidence: float
     runtime_fit: float
     total: float
 

@@ -5,9 +5,10 @@ import random
 import pytest
 
 from app.engine.scoring import (
-    CONFIDENCE_SATURATION,
+    POOL_MEAN_RATING,
+    RATING_PRIOR_VOTES,
     WEIGHTS,
-    confidence,
+    adjusted_rating,
     genre_match,
     highlights,
     rating,
@@ -17,14 +18,23 @@ from app.engine.scoring import (
 
 from .conftest import ACTION, COMEDY, SCIFI, movie, request
 
+WELL_VOTED = 100_000  # enough that shrinkage is negligible
+
 
 def test_weights_sum_to_one() -> None:
     assert sum(WEIGHTS.values()) == pytest.approx(1.0)
 
 
-def test_genre_match_is_the_heaviest_component() -> None:
-    """It is the only input that states intent; the rest proxy quality."""
-    assert max(WEIGHTS, key=lambda k: WEIGHTS[k]) == "genre_match"
+def test_intent_and_quality_dominate_over_fit() -> None:
+    """Genre and rating decide; runtime only breaks near-ties.
+
+    Rating carries slightly more nominal weight than genre, which looks backwards for an
+    app built around stated intent — but the GENRE hard constraint has already thrown out
+    everything that does not overlap, so genre_match is 1.0 for most survivors and only
+    separates candidates when several genres were picked. Rating does the real ordering.
+    """
+    assert WEIGHTS["genre_match"] + WEIGHTS["rating"] >= 0.8
+    assert min(WEIGHTS, key=lambda k: WEIGHTS[k]) == "runtime_fit"
 
 
 def test_there_is_no_recency_component() -> None:
@@ -50,29 +60,57 @@ class TestGenreMatch:
         assert genre_match(movie(), request(genre_ids=frozenset())) == 0.5
 
 
+class TestAdjustedRating:
+    """A raw average is not comparable across sample sizes; this makes it so."""
+
+    def test_the_case_that_prompted_this(self) -> None:
+        """TMDb had this at 9.9 from 143 votes. IMDb had it at 5.6."""
+        inflated = movie(vote_average=9.9, vote_count=143)
+        assert adjusted_rating(inflated) == pytest.approx(7.48, abs=0.02)
+
+    def test_a_heavily_voted_score_is_left_almost_untouched(self) -> None:
+        acclaimed = movie(vote_average=8.4, vote_count=30_000)
+        assert adjusted_rating(acclaimed) == pytest.approx(8.4, abs=0.05)
+
+    def test_a_thin_sample_beats_nothing_and_loses_to_a_real_one(self) -> None:
+        thin = movie(vote_average=9.5, vote_count=120)
+        solid = movie(vote_average=8.2, vote_count=25_000)
+        assert adjusted_rating(thin) < adjusted_rating(solid)
+
+    def test_zero_votes_falls_back_to_the_pool_mean(self) -> None:
+        assert adjusted_rating(movie(vote_count=0)) == pytest.approx(POOL_MEAN_RATING)
+
+    def test_the_prior_carries_half_the_weight_at_the_prior_vote_count(self) -> None:
+        halfway = movie(vote_average=9.13, vote_count=RATING_PRIOR_VOTES)
+        assert adjusted_rating(halfway) == pytest.approx((9.13 + POOL_MEAN_RATING) / 2)
+
+    def test_a_below_average_film_is_pulled_up_not_down(self) -> None:
+        poor = movie(vote_average=4.0, vote_count=200)
+        assert 4.0 < adjusted_rating(poor) < POOL_MEAN_RATING
+
+    def test_more_votes_move_a_score_toward_its_own_average(self) -> None:
+        gaps = [
+            abs(adjusted_rating(movie(vote_average=9.0, vote_count=v)) - 9.0)
+            for v in (100, 1_000, 10_000, 100_000)
+        ]
+        assert gaps == sorted(gaps, reverse=True)
+
+
 class TestRating:
     def test_normalises_over_the_range_ratings_actually_occupy(self) -> None:
-        assert rating(movie(vote_average=5.0)) == 0.0
-        assert rating(movie(vote_average=7.0)) == pytest.approx(0.5)
-        assert rating(movie(vote_average=9.0)) == 1.0
+        assert rating(movie(vote_average=5.0, vote_count=WELL_VOTED)) == pytest.approx(
+            0.0, abs=0.01
+        )
+        assert rating(movie(vote_average=7.0, vote_count=WELL_VOTED)) == pytest.approx(
+            0.5, abs=0.01
+        )
+        assert rating(movie(vote_average=9.0, vote_count=WELL_VOTED)) == pytest.approx(
+            1.0, abs=0.01
+        )
 
     def test_clamps_outside_the_range(self) -> None:
-        assert rating(movie(vote_average=2.0)) == 0.0
-        assert rating(movie(vote_average=10.0)) == 1.0
-
-
-class TestConfidence:
-    def test_saturates_so_blockbusters_do_not_run_away_with_it(self) -> None:
-        assert confidence(movie(vote_count=CONFIDENCE_SATURATION)) == pytest.approx(1.0)
-        assert confidence(movie(vote_count=CONFIDENCE_SATURATION * 50)) == pytest.approx(1.0)
-
-    def test_more_votes_never_hurts(self) -> None:
-        counts = [100, 500, 1_000, 5_000, 20_000]
-        scores = [confidence(movie(vote_count=c)) for c in counts]
-        assert scores == sorted(scores)
-
-    def test_zero_votes_is_handled(self) -> None:
-        assert confidence(movie(vote_count=0)) == 0.0
+        assert rating(movie(vote_average=2.0, vote_count=WELL_VOTED)) == 0.0
+        assert rating(movie(vote_average=10.0, vote_count=WELL_VOTED)) == 1.0
 
 
 class TestRuntimeFit:
@@ -96,11 +134,18 @@ class TestScore:
     def test_a_perfect_movie_scores_one(self) -> None:
         perfect = movie(
             genre_ids=frozenset({ACTION}),
-            vote_average=9.0,
-            vote_count=CONFIDENCE_SATURATION,
+            vote_average=9.5,
+            vote_count=WELL_VOTED,
             runtime_minutes=120,
         )
         assert score(perfect, request(max_runtime=120)).total == pytest.approx(1.0)
+
+    def test_an_inflated_score_loses_to_a_well_reviewed_one(self) -> None:
+        """The whole point: 9.9 from 143 voters must not beat 8.4 from 30,000."""
+        req = request(genre_ids=frozenset({ACTION}), max_runtime=120)
+        inflated = movie(vote_average=9.9, vote_count=143, runtime_minutes=90)
+        acclaimed = movie(vote_average=8.4, vote_count=30_000, runtime_minutes=115)
+        assert score(inflated, req).total < score(acclaimed, req).total
 
     def test_total_is_the_weighted_sum_of_its_parts(self) -> None:
         breakdown = score(movie(), request())

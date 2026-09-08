@@ -13,8 +13,11 @@ from collections.abc import Iterable, Sequence
 from datetime import date
 
 from app.engine.models import CandidateMovie, Constraint, DecisionRequest
+from app.engine.scoring import adjusted_rating
 
-# Below this, a high average is usually three enthusiastic votes rather than a good film.
+# A sanity floor only. The real defence against an inflated average is the shrunk rating
+# in scoring.py, which needs no arbitrary cutoff; this just drops films with essentially
+# no ratings at all.
 MIN_VOTE_COUNT = 100
 
 
@@ -36,7 +39,11 @@ def failures(
     if movie.runtime_minutes is not None and movie.runtime_minutes > request.max_runtime:
         failed.add(Constraint.RUNTIME)
 
-    if request.min_rating is not None and movie.vote_average < request.min_rating:
+    # Compared against the shrunk rating, not the raw one, so "8+" means a film that is
+    # genuinely rated 8 rather than one with a 9.9 from 143 voters. Shrinkage only ever
+    # lowers an above-average score, so TMDb's server-side vote_average.gte pre-filter
+    # cannot hide anything this would have accepted.
+    if request.min_rating is not None and adjusted_rating(movie) < request.min_rating:
         failed.add(Constraint.RATING)
 
     if movie.vote_count < MIN_VOTE_COUNT:

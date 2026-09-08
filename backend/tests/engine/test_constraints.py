@@ -48,6 +48,47 @@ def test_rating_floor_eliminates_only_when_requested(today: date) -> None:
     )
 
 
+class TestReleaseYearFloor:
+    """Filtering by age, rather than penalising it in scoring.
+
+    Scoring cannot express this: an age penalty would push old films down for everyone,
+    including the people who want them. A floor only applies when it is asked for.
+    """
+
+    def test_no_floor_lets_anything_through(self, today: date) -> None:
+        ancient = movie(release_date=date(1938, 5, 1))
+        assert failures(ancient, request(), NO_EXCLUSIONS, today) == frozenset()
+
+    def test_older_than_the_floor_is_eliminated(self, today: date) -> None:
+        ancient = movie(release_date=date(1938, 5, 1))
+        assert failures(ancient, request(min_year=1980), NO_EXCLUSIONS, today) == frozenset(
+            {Constraint.RELEASE_YEAR}
+        )
+
+    def test_the_floor_year_itself_is_allowed(self, today: date) -> None:
+        """1980+ means 1980 counts, including a film released on New Year's Eve."""
+        for release in (date(1980, 1, 1), date(1980, 12, 31)):
+            assert failures(
+                movie(release_date=release), request(min_year=1980), NO_EXCLUSIONS, today
+            ) == frozenset()
+
+    def test_newer_than_the_floor_is_fine(self, today: date) -> None:
+        recent = movie(release_date=date(2021, 6, 1))
+        assert failures(recent, request(min_year=1980), NO_EXCLUSIONS, today) == frozenset()
+
+    def test_an_undated_film_reports_one_problem_not_two(self, today: date) -> None:
+        """The relaxation counts only look at candidates blocked by exactly one thing."""
+        undated = movie(release_date=None)
+        assert failures(undated, request(min_year=1980), NO_EXCLUSIONS, today) == frozenset(
+            {Constraint.RELEASED}
+        )
+
+    def test_relaxing_the_year_is_offered(self, today: date) -> None:
+        candidates = [movie(release_date=date(1955, 1, 1)) for _ in range(3)]
+        counts = counts_if_relaxed(candidates, request(min_year=1990), NO_EXCLUSIONS, today)
+        assert counts[Constraint.RELEASE_YEAR] == 3
+
+
 def test_rating_floor_is_inclusive(today: date) -> None:
     exact = movie(vote_average=7.0)
     assert failures(exact, request(min_rating=7.0), NO_EXCLUSIONS, today) == frozenset()

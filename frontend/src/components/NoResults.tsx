@@ -16,6 +16,8 @@ function relax(constraints: Constraints, hint: RelaxationHint): Constraints {
       return { ...constraints, max_runtime: 240 };
     case "genre_ids":
       return { ...constraints, genre_ids: [] };
+    case "min_year":
+      return { ...constraints, min_year: null };
     default:
       return constraints;
   }

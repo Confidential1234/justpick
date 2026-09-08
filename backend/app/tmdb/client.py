@@ -41,6 +41,7 @@ class DiscoverFilters:
     genre_ids: frozenset[int] = frozenset()
     max_runtime: int | None = None
     min_rating: float | None = None
+    min_year: int | None = None
     min_vote_count: int = DEFAULT_MIN_VOTE_COUNT
     region: str = DEFAULT_REGION
 
@@ -60,6 +61,10 @@ class DiscoverFilters:
             params["with_runtime.lte"] = str(self.max_runtime)
         if self.min_rating is not None:
             params["vote_average.gte"] = str(self.min_rating)
+        if self.min_year is not None:
+            # primary_release_date is the original release, not a regional re-release.
+            # Unlike with_runtime.lte this one holds: verified 0 violations in 60 rows.
+            params["primary_release_date.gte"] = f"{self.min_year}-01-01"
         # TMDb answers 400 to vote_count.gte=0, so omit rather than send a zero floor.
         if self.min_vote_count > 0:
             params["vote_count.gte"] = str(self.min_vote_count)

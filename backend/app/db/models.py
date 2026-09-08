@@ -164,6 +164,7 @@ class DecisionRequestRow(Base):
     genre_ids: Mapped[list[int]] = mapped_column(ARRAY(Integer), nullable=False, default=list)
     max_runtime: Mapped[int] = mapped_column(Integer, nullable=False)
     min_rating: Mapped[float | None] = mapped_column(Numeric(3, 1))
+    min_year: Mapped[int | None] = mapped_column(Integer)
     region: Mapped[str] = mapped_column(String(2), nullable=False, default="US")
     created_at: Mapped[datetime] = _now()
 

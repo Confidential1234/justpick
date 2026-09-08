@@ -67,6 +67,7 @@ async def create_decision(
             genre_ids=frozenset(body.genre_ids),
             max_runtime=body.max_runtime,
             min_rating=body.min_rating,
+            min_year=body.min_year,
         ),
     )
     await db.commit()

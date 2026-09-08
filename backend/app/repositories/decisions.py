@@ -21,6 +21,7 @@ async def create_request(
     genre_ids: Sequence[int],
     max_runtime: int,
     min_rating: float | None,
+    min_year: int | None = None,
     region: str = "US",
 ) -> DecisionRequestRow:
     row = DecisionRequestRow(
@@ -29,6 +30,7 @@ async def create_request(
         genre_ids=sorted(genre_ids),
         max_runtime=max_runtime,
         min_rating=min_rating,
+        min_year=min_year,
         region=region,
     )
     db.add(row)

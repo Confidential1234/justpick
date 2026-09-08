@@ -51,6 +51,10 @@ def failures(
 
     if movie.release_date is None or movie.release_date > today:
         failed.add(Constraint.RELEASED)
+    elif request.min_year is not None and movie.release_date.year < request.min_year:
+        # elif, so an undated film reports one problem rather than two — the relaxation
+        # counts only look at candidates blocked by exactly one thing.
+        failed.add(Constraint.RELEASE_YEAR)
 
     if movie.adult:
         failed.add(Constraint.ADULT)
@@ -69,7 +73,13 @@ def survivors(
 
 # Constraints the user can actually loosen in the UI. ADULT, EXCLUDED, VOTE_COUNT and
 # RELEASED are ours, not theirs, so offering to relax them would be nonsense.
-RELAXABLE = (Constraint.RUNTIME, Constraint.RATING, Constraint.GENRE, Constraint.PROVIDER)
+RELAXABLE = (
+    Constraint.RUNTIME,
+    Constraint.RATING,
+    Constraint.GENRE,
+    Constraint.PROVIDER,
+    Constraint.RELEASE_YEAR,
+)
 
 
 def counts_if_relaxed(

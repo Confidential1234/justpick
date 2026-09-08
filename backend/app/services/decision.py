@@ -46,6 +46,7 @@ def _to_engine_request(row: DecisionRequestRow) -> DecisionRequest:
         genre_ids=frozenset(row.genre_ids),
         max_runtime=row.max_runtime,
         min_rating=float(row.min_rating) if row.min_rating is not None else None,
+        min_year=row.min_year,
     )
 
 
@@ -78,6 +79,7 @@ async def start(
         genre_ids=sorted(request.genre_ids),
         max_runtime=request.max_runtime,
         min_rating=request.min_rating,
+        min_year=request.min_year,
         region=region,
     )
     return await _answer(db, client, row=row, session_id=session_id, region=region)

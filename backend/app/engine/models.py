@@ -16,6 +16,7 @@ class Constraint(StrEnum):
     PROVIDER = "provider"
     RUNTIME = "runtime"
     RATING = "rating"
+    RELEASE_YEAR = "release_year"
     VOTE_COUNT = "vote_count"
     GENRE = "genre"
     EXCLUDED = "excluded"
@@ -49,6 +50,9 @@ class DecisionRequest:
     genre_ids: frozenset[int]
     max_runtime: int
     min_rating: float | None = None
+    # Oldest acceptable release year. A filter rather than an age penalty in scoring:
+    # someone who wants a 1938 film should still be able to get one.
+    min_year: int | None = None
 
 
 @dataclass(frozen=True, slots=True)

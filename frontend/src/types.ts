@@ -41,7 +41,7 @@ export interface Decision {
 }
 
 export interface RelaxationHint {
-  field: "min_rating" | "max_runtime" | "genre_ids" | "provider_ids";
+  field: "min_rating" | "max_runtime" | "genre_ids" | "provider_ids" | "min_year";
   action: string;
   label: string;
   would_yield: number;
@@ -52,6 +52,7 @@ export interface Constraints {
   genre_ids: number[];
   max_runtime: number;
   min_rating: number | null;
+  min_year: number | null;
 }
 
 export type RejectReason =

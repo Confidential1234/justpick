@@ -45,6 +45,7 @@ def _filters(request: DecisionRequest, region: str = "US") -> DiscoverFilters:
         genre_ids=request.genre_ids,
         max_runtime=request.max_runtime,
         min_rating=request.min_rating,
+        min_year=request.min_year,
         region=region,
     )
 
@@ -128,6 +129,10 @@ async def relaxation_counts(
     if request.min_rating is not None:
         variants[Constraint.RATING] = DiscoverFilters(**{**vars_of(base), "min_rating": None})
     variants[Constraint.RUNTIME] = DiscoverFilters(**{**vars_of(base), "max_runtime": None})
+    if request.min_year is not None:
+        variants[Constraint.RELEASE_YEAR] = DiscoverFilters(
+            **{**vars_of(base), "min_year": None}
+        )
     if request.genre_ids:
         variants[Constraint.GENRE] = DiscoverFilters(
             **{**vars_of(base), "genre_ids": frozenset()}

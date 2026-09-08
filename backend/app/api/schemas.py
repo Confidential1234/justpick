@@ -6,6 +6,8 @@ from pydantic import BaseModel, Field, field_validator
 
 MIN_RUNTIME = 40
 MAX_RUNTIME = 300
+# Cinema's first feature-length films; anything earlier is a data error, not a preference.
+EARLIEST_YEAR = 1900
 
 
 class GenreOut(BaseModel):
@@ -38,6 +40,8 @@ class DecisionCreate(BaseModel):
     genre_ids: list[int] = Field(default_factory=list)
     max_runtime: int = Field(ge=MIN_RUNTIME, le=MAX_RUNTIME)
     min_rating: float | None = Field(default=None, ge=0, le=10)
+    # Oldest acceptable release year; null means no floor.
+    min_year: int | None = Field(default=None, ge=EARLIEST_YEAR, le=2100)
 
     @field_validator("provider_ids", "genre_ids")
     @classmethod

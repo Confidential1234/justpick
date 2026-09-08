@@ -25,6 +25,7 @@ _COMPONENT_LABELS = {
 _RELAXATION = {
     Constraint.RATING: ("min_rating", "remove", "Any rating"),
     Constraint.RUNTIME: ("max_runtime", "remove", "Any length"),
+    Constraint.RELEASE_YEAR: ("min_year", "remove", "Any year"),
     Constraint.GENRE: ("genre_ids", "clear", "Any genre"),
     Constraint.PROVIDER: ("provider_ids", "add", "More services"),
 }

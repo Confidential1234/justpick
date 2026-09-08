@@ -55,6 +55,16 @@ def test_optional_filters_are_sent_when_set() -> None:
     assert params["vote_average.gte"] == "7.5"
 
 
+def test_release_year_floor_becomes_a_date() -> None:
+    """TMDb filters on a date, not a year; verified to hold, unlike with_runtime.lte."""
+    params = DiscoverFilters(provider_ids=BOTH, min_year=1990).as_params()
+    assert params["primary_release_date.gte"] == "1990-01-01"
+
+
+def test_no_release_year_floor_means_no_parameter() -> None:
+    assert "primary_release_date.gte" not in DiscoverFilters(provider_ids=BOTH).as_params()
+
+
 def test_vote_count_floor_is_applied_by_default() -> None:
     assert DiscoverFilters(provider_ids=BOTH).as_params()["vote_count.gte"] == "100"
 

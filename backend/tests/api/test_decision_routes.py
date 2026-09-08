@@ -134,6 +134,7 @@ class TestValidation:
             ("max_runtime", 999),
             ("min_rating", -1),
             ("min_rating", 11),
+            ("min_year", 1600),
         ],
     )
     async def test_rejects_out_of_range_input(
@@ -143,6 +144,23 @@ class TestValidation:
             "/api/v1/decisions", json={**VALID_BODY, field: value}, headers=HEADERS
         )
         assert response.status_code == 422
+
+    async def test_a_release_year_floor_is_passed_through(
+        self, client: httpx.AsyncClient, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        seen = stub(monkeypatch, "start", outcome())
+        response = await client.post(
+            "/api/v1/decisions", json={**VALID_BODY, "min_year": 1990}, headers=HEADERS
+        )
+        assert response.status_code == 201
+        assert seen["request"].min_year == 1990
+
+    async def test_the_year_floor_is_optional(
+        self, client: httpx.AsyncClient, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        seen = stub(monkeypatch, "start", outcome())
+        await client.post("/api/v1/decisions", json=VALID_BODY, headers=HEADERS)
+        assert seen["request"].min_year is None
 
     async def test_genres_are_optional(
         self, client: httpx.AsyncClient, monkeypatch: pytest.MonkeyPatch

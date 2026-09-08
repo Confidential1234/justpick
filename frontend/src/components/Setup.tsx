@@ -16,6 +16,15 @@ const RATINGS = [
   { value: 8, label: "8+" },
 ];
 
+// Only ~6% of the catalogue predates 1980, but those films score well on genre match and
+// rating, so they turn up near the top more often than that share suggests.
+const YEARS = [
+  { value: null, label: "Any" },
+  { value: 1980, label: "1980+" },
+  { value: 2000, label: "2000+" },
+  { value: 2015, label: "2015+" },
+];
+
 function formatRuntime(minutes: number): string {
   const h = Math.floor(minutes / 60);
   const m = minutes % 60;
@@ -40,6 +49,7 @@ export function Setup({ onSubmit, busy, initial }: Props) {
   const [chosenGenres, setChosenGenres] = useState<number[]>(initial?.genre_ids ?? []);
   const [maxRuntime, setMaxRuntime] = useState(initial?.max_runtime ?? 120);
   const [minRating, setMinRating] = useState<number | null>(initial?.min_rating ?? null);
+  const [minYear, setMinYear] = useState<number | null>(initial?.min_year ?? null);
 
   useEffect(() => {
     Promise.all([api.providers(), api.genres()])
@@ -83,6 +93,7 @@ export function Setup({ onSubmit, busy, initial }: Props) {
           genre_ids: chosenGenres,
           max_runtime: maxRuntime,
           min_rating: minRating,
+          min_year: minYear,
         });
       }}
     >
@@ -136,6 +147,23 @@ export function Setup({ onSubmit, busy, initial }: Props) {
           aria-label="Maximum runtime in minutes"
           onChange={(event) => setMaxRuntime(Number(event.target.value))}
         />
+      </fieldset>
+
+      <fieldset>
+        <legend>How old can it be?</legend>
+        <div className="chips">
+          {YEARS.map((year) => (
+            <button
+              key={year.label}
+              type="button"
+              className={`chip ${minYear === year.value ? "on" : ""}`}
+              aria-pressed={minYear === year.value}
+              onClick={() => setMinYear(year.value)}
+            >
+              {year.label}
+            </button>
+          ))}
+        </div>
       </fieldset>
 
       <fieldset>

@@ -24,8 +24,9 @@ dist/
 # Local editor/tooling config, same treatment as .vscode and .idea below
 .claude/
 
-# Internal planning notes — roadmap, open decisions, milestone status. Local only.
+# Internal notes — roadmap, open decisions, milestone status. Local only.
 docs/PROPOSAL.md
+docs/interview-prep.md
 
 # Editors / OS
 .vscode/

@@ -9,10 +9,14 @@ const WAKING =
 
 const RUNTIME_MIN = 60;
 const RUNTIME_MAX = 240;
+// Ratings are shrunk toward the catalogue mean of ~7.13 before being compared, so the
+// usable range is far narrower than TMDb's raw 0-10. Measured across 300 popular films,
+// these rungs keep 51%, 14% and 3% of the pool; a 6+ option passed everything and did
+// nothing at all.
 const RATINGS = [
   { value: null, label: "Any" },
-  { value: 6, label: "6+" },
   { value: 7, label: "7+" },
+  { value: 7.5, label: "7.5+" },
   { value: 8, label: "8+" },
 ];
 

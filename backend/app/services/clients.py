@@ -24,6 +24,7 @@ def get_tmdb_client() -> TMDbClient:
 
 
 async def close_tmdb_client() -> None:
+    """Release the connection pool. Called on application shutdown."""
     global _client
     if _client is not None:
         await _client.aclose()

@@ -58,6 +58,11 @@ async def create_decision(
     session: SessionId,
     response: Response,
 ) -> DecisionOut:
+    """Submit constraints and get exactly one movie back.
+
+    Answers 409 with relaxation hints when nothing matches, and 422 when the constraints
+    themselves are out of range.
+    """
     outcome = await service.start(
         db,
         client,
@@ -87,6 +92,10 @@ async def reject_decision(
     session: SessionId,
     response: Response,
 ) -> DecisionOut:
+    """Turn down the current suggestion, with a reason, and get a different movie.
+
+    The rejected film will not be offered again to this session for a cooldown period.
+    """
     outcome = await service.reject_and_next(
         db,
         client,
@@ -108,6 +117,7 @@ async def accept_decision(
     session: SessionId,
     response: Response,
 ) -> AcceptedOut:
+    """Confirm the current suggestion. Terminal — the decision is closed."""
     view = await service.accept_recommendation(
         db,
         request_id=request_id,

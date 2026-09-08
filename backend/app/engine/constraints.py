@@ -75,6 +75,7 @@ def survivors(
     excluded_movie_ids: frozenset[int],
     today: date,
 ) -> list[CandidateMovie]:
+    """The candidates that fail no hard constraint, in the order given."""
     return [m for m in candidates if not failures(m, request, excluded_movie_ids, today)]
 
 

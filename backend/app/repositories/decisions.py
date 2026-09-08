@@ -24,6 +24,10 @@ async def create_request(
     min_year: int | None = None,
     region: str = "US",
 ) -> DecisionRequestRow:
+    """Record one set of constraints. Rejections produce further attempts against it.
+
+    Ids are stored sorted so two equivalent requests are byte-identical in the database.
+    """
     row = DecisionRequestRow(
         session_id=session_id,
         provider_ids=sorted(provider_ids),
@@ -39,10 +43,12 @@ async def create_request(
 
 
 async def get_request(db: AsyncSession, request_id: uuid.UUID) -> DecisionRequestRow | None:
+    """Load a request by id, without checking who owns it. Callers must verify that."""
     return await db.get(DecisionRequestRow, request_id)
 
 
 async def next_attempt(db: AsyncSession, request_id: uuid.UUID) -> int:
+    """The attempt number for the next suggestion — 1 if none have been made yet."""
     highest = await db.scalar(
         select(func.max(Recommendation.attempt)).where(Recommendation.request_id == request_id)
     )
@@ -72,6 +78,12 @@ async def record_recommendation(
     candidate_count: int,
     band_size: int,
 ) -> Recommendation:
+    """Save a suggestion along with the score that produced it.
+
+    The full breakdown is stored, not just the total, so a pick that looks wrong can be
+    attributed to a component later rather than re-derived from scoring code that may
+    since have changed.
+    """
     row = Recommendation(
         request_id=request_id,
         movie_id=movie_id,
@@ -89,12 +101,14 @@ async def record_recommendation(
 async def get_recommendation(
     db: AsyncSession, recommendation_id: uuid.UUID
 ) -> Recommendation | None:
+    """Load a recommendation by id. Ownership is the caller's responsibility."""
     return await db.get(Recommendation, recommendation_id)
 
 
 async def latest_recommendation(
     db: AsyncSession, request_id: uuid.UUID
 ) -> Recommendation | None:
+    """The most recent suggestion for a request, or None if there has not been one."""
     return await db.scalar(
         select(Recommendation)
         .where(Recommendation.request_id == request_id)
@@ -113,6 +127,11 @@ async def record_feedback(
     reason: str | None = None,
     note: str | None = None,
 ) -> Feedback:
+    """Store the user's verdict on a suggestion.
+
+    A unique index on recommendation_id means a second verdict raises rather than
+    silently overwriting the first.
+    """
     row = Feedback(
         recommendation_id=recommendation_id,
         session_id=session_id,

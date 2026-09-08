@@ -12,6 +12,7 @@ from app.services.clients import TMDbClient, get_tmdb_client
 
 
 async def db_session() -> AsyncIterator[AsyncSession]:
+    """A database session scoped to one request. Overridden in tests."""
     async for session in get_session():
         yield session
 
@@ -34,6 +35,7 @@ def session_id(
 
 
 def tmdb() -> TMDbClient:
+    """The shared TMDb client. One connection pool for the whole process."""
     return get_tmdb_client()
 
 

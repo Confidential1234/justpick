@@ -167,6 +167,7 @@ async def list_providers(db: AsyncSession) -> list[ProviderOption]:
 
 
 async def list_genres(db: AsyncSession) -> list[GenreOption]:
+    """Every genre TMDb defines, alphabetically, for the mood picker."""
     return [GenreOption(id=g.id, name=g.name) for g in await repo.all_genres(db)]
 
 

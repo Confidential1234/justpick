@@ -16,12 +16,16 @@ POSTER_SIZE = "w500"
 
 @dataclass(frozen=True, slots=True)
 class GenreOption:
+    """A genre as offered in the UI or attached to a movie."""
+
     id: int
     name: str
 
 
 @dataclass(frozen=True, slots=True)
 class ProviderOption:
+    """A streaming service, with a resolved logo URL rather than a bare TMDb path."""
+
     id: int
     name: str
     logo_url: str | None
@@ -29,6 +33,8 @@ class ProviderOption:
 
 @dataclass(frozen=True, slots=True)
 class MovieView:
+    """A movie shaped for display: URLs resolved, year extracted, genres named."""
+
     tmdb_id: int
     title: str
     overview: str
@@ -56,6 +62,11 @@ class _MovieRow(Protocol):
 
 
 def image_url(path: str | None, size: str = POSTER_SIZE) -> str | None:
+    """Turn a bare TMDb image path into a full URL, or None if there is no image.
+
+    TMDb returns paths like "/abc123.jpg" and expects the client to prepend a base and a
+    size; doing it here keeps that convention out of the frontend.
+    """
     if not path:
         return None
     return f"{get_settings().tmdb_image_base_url}/{size}{path}"
@@ -95,6 +106,13 @@ def from_details(
     details: MovieDetails,
     providers: tuple[ProviderOption, ...],
 ) -> MovieView:
+    """Build a view from a fresh TMDb details payload.
+
+    Args:
+        details: the movie as TMDb just returned it.
+        providers: only the services the user actually subscribes to — TMDb lists every
+            flatrate carrier, and naming one they do not have is worse than naming none.
+    """
     return _view(
         tmdb_id=details.tmdb_id,
         title=details.title,
@@ -114,6 +132,11 @@ def from_row(
     genres: tuple[GenreOption, ...],
     providers: tuple[ProviderOption, ...],
 ) -> MovieView:
+    """Build the same view from a cached row, for re-reading an earlier decision.
+
+    Genres and providers are passed in rather than read off the row, because the cache
+    stores them as separate join tables.
+    """
     return _view(
         tmdb_id=row.tmdb_id,
         title=row.title,

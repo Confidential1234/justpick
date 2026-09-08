@@ -8,6 +8,12 @@ from pydantic_settings import BaseSettings, NoDecode, SettingsConfigDict
 
 
 class Settings(BaseSettings):
+    """All configuration, read from the environment or a local .env file.
+
+    Nothing here has a secret as its default, so a missing variable fails loudly rather
+    than silently running against the wrong thing.
+    """
+
     model_config = SettingsConfigDict(env_file=".env", extra="ignore")
 
     app_env: str = "local"
@@ -76,4 +82,5 @@ class Settings(BaseSettings):
 
 @lru_cache
 def get_settings() -> Settings:
+    """The process-wide settings, parsed once and cached."""
     return Settings()

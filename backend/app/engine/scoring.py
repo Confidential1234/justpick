@@ -62,6 +62,7 @@ def adjusted_rating(movie: CandidateMovie) -> float:
 
 
 def rating(movie: CandidateMovie) -> float:
+    """The adjusted rating, normalised to [0, 1] over the range ratings actually occupy."""
     return _clamp((adjusted_rating(movie) - RATING_FLOOR) / (RATING_CEILING - RATING_FLOOR))
 
 
@@ -77,6 +78,12 @@ def runtime_fit(movie: CandidateMovie, request: DecisionRequest) -> float:
 
 
 def score(movie: CandidateMovie, request: DecisionRequest) -> ScoreBreakdown:
+    """Score one candidate, returning every component alongside the weighted total.
+
+    The components are kept rather than discarded so that a pick which looks wrong can be
+    attributed to a specific term instead of re-derived from a function that may since
+    have changed.
+    """
     components = {
         "genre_match": genre_match(movie, request),
         "rating": rating(movie),

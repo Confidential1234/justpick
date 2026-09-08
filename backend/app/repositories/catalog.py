@@ -22,6 +22,7 @@ PROVIDER_TTL = timedelta(hours=24)
 
 
 async def upsert_genres(db: AsyncSession, rows: Sequence[Row]) -> int:
+    """Insert or rename genres. Returns how many rows were submitted."""
     if not rows:
         return 0
     stmt = insert(Genre).values(list(rows))
@@ -32,6 +33,7 @@ async def upsert_genres(db: AsyncSession, rows: Sequence[Row]) -> int:
 
 
 async def upsert_providers(db: AsyncSession, rows: Sequence[Row]) -> int:
+    """Insert or refresh streaming services, including which are offered in the UI."""
     if not rows:
         return 0
     stmt = insert(Provider).values(list(rows))
@@ -81,6 +83,7 @@ async def upsert_movies(db: AsyncSession, rows: Sequence[Row]) -> int:
 
 
 async def replace_movie_genres(db: AsyncSession, movie_id: int, genre_ids: Sequence[int]) -> None:
+    """Set a movie's genres to exactly this list, dropping any it previously had."""
     await db.execute(delete(MovieGenre).where(MovieGenre.movie_id == movie_id))
     if genre_ids:
         await db.execute(
@@ -177,6 +180,7 @@ async def cached_runtimes(db: AsyncSession, movie_ids: Sequence[int]) -> dict[in
 
 
 async def enabled_providers(db: AsyncSession) -> list[Provider]:
+    """The services the UI offers, by name. The table holds all ~290 TMDb knows about."""
     result = await db.execute(
         select(Provider).where(Provider.is_enabled.is_(True)).order_by(Provider.name)
     )
@@ -208,6 +212,7 @@ async def providers_for_movie(
 
 
 async def genres_for_movie(db: AsyncSession, tmdb_id: int) -> list[Genre]:
+    """A cached movie's genres, by name."""
     result = await db.execute(
         select(Genre)
         .join(MovieGenre, MovieGenre.genre_id == Genre.id)
@@ -218,8 +223,10 @@ async def genres_for_movie(db: AsyncSession, tmdb_id: int) -> list[Genre]:
 
 
 async def all_genres(db: AsyncSession) -> list[Genre]:
+    """Every genre, alphabetically."""
     return list((await db.execute(select(Genre).order_by(Genre.name))).scalars())
 
 
 async def count_rows(db: AsyncSession, model: type) -> int:
+    """Row count for a model. Used by the seed script to report what it wrote."""
     return (await db.execute(select(func.count()).select_from(model))).scalar_one()

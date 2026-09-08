@@ -4,4 +4,4 @@ from sqlalchemy.orm import DeclarativeBase
 
 
 class Base(DeclarativeBase):
-    pass
+    """Declarative base every model inherits from, and Alembic's comparison target."""

@@ -37,6 +37,12 @@ DEFAULT_MIN_VOTE_COUNT = 100
 
 @dataclass(frozen=True, slots=True)
 class DiscoverFilters:
+    """The constraints for a candidate search, in TMDb's terms rather than ours.
+
+    Every field except `provider_ids` is optional, and an unset field means the
+    corresponding parameter is left off the request entirely.
+    """
+
     provider_ids: frozenset[int]
     genre_ids: frozenset[int] = frozenset()
     max_runtime: int | None = None
@@ -46,6 +52,11 @@ class DiscoverFilters:
     region: str = DEFAULT_REGION
 
     def as_params(self) -> dict[str, str]:
+        """Render these filters as TMDb query parameters.
+
+        Ids are sorted so that two equivalent searches produce an identical URL, which
+        keeps any response caching useful.
+        """
         params: dict[str, str] = {
             "watch_region": self.region,
             "with_watch_monetization_types": "flatrate",
@@ -103,6 +114,7 @@ class TMDbClient:
         await self.aclose()
 
     async def aclose(self) -> None:
+        """Close the underlying connection pool."""
         await self._client.aclose()
 
     async def _get(self, path: str, params: dict[str, str] | None = None) -> dict[str, Any]:
@@ -152,14 +164,21 @@ class TMDbClient:
             await asyncio.sleep(delay)
 
     async def genres(self, language: str = "en-US") -> tuple[TMDbGenre, ...]:
+        """Every genre TMDb defines. Stable enough to seed once and cache."""
         payload = await self._get("/genre/movie/list", {"language": language})
         return tuple(parse_genre(g) for g in payload.get("genres") or ())
 
     async def watch_providers(self, region: str = DEFAULT_REGION) -> tuple[TMDbProvider, ...]:
+        """Every streaming service TMDb tracks in a region — around 290 for the US."""
         payload = await self._get("/watch/providers/movie", {"watch_region": region})
         return tuple(parse_provider(p) for p in payload.get("results") or ())
 
     async def discover(self, filters: DiscoverFilters, page: int = 1) -> DiscoverPage:
+        """Search for candidates, 20 per page.
+
+        Note that results carry neither a runtime nor which service holds the film, even
+        though both can be filtered on — see `movie_details` for those.
+        """
         params = filters.as_params() | {"page": str(page)}
         return parse_discover_page(await self._get("/discover/movie", params))
 

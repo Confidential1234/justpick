@@ -36,10 +36,12 @@ def _as_int(value: Any, default: int = 0) -> int:
 
 
 def parse_genre(raw: dict[str, Any]) -> TMDbGenre:
+    """Parse one entry from /genre/movie/list."""
     return TMDbGenre(id=int(raw["id"]), name=str(raw.get("name", "")))
 
 
 def parse_provider(raw: dict[str, Any]) -> TMDbProvider:
+    """Parse one entry from /watch/providers/movie."""
     return TMDbProvider(
         id=int(raw["provider_id"]),
         name=str(raw.get("provider_name", "")),
@@ -48,6 +50,7 @@ def parse_provider(raw: dict[str, Any]) -> TMDbProvider:
 
 
 def parse_discover_movie(raw: dict[str, Any]) -> DiscoverMovie:
+    """Parse one search result, tolerating any missing field except the id."""
     return DiscoverMovie(
         tmdb_id=int(raw["id"]),
         title=str(raw.get("title") or raw.get("original_title") or ""),
@@ -65,6 +68,7 @@ def parse_discover_movie(raw: dict[str, Any]) -> DiscoverMovie:
 
 
 def parse_discover_page(raw: dict[str, Any]) -> DiscoverPage:
+    """Parse a page of search results. A payload with no results yields an empty page."""
     return DiscoverPage(
         page=_as_int(raw.get("page"), 1),
         total_pages=_as_int(raw.get("total_pages")),

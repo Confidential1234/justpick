@@ -26,6 +26,11 @@ def _error(status_code: int, error: str, message: str) -> JSONResponse:
 
 
 def register(app: FastAPI) -> None:
+    """Attach every exception handler, so all errors share one flat JSON shape.
+
+    Handlers live here rather than in the routes so that a client only ever has to parse
+    one error format, whatever went wrong.
+    """
     @app.exception_handler(NoCandidates)
     async def _no_candidates(request: Request, exc: NoCandidates) -> JSONResponse:
         # Raised rather than returned so it goes through the same handler pipeline as

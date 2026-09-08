@@ -25,6 +25,12 @@ from app.tmdb.models import MovieDetails
 
 @dataclass(slots=True)
 class DecisionOutcome:
+    """Everything the API needs about one attempt at answering a request.
+
+    Carries either a movie or, when nothing qualified, the relaxation counts describing
+    what the user could loosen.
+    """
+
     request_id: uuid.UUID
     attempt: int
     decision: Decision
@@ -37,6 +43,7 @@ class DecisionOutcome:
 
     @property
     def found(self) -> bool:
+        """True when this attempt produced a movie."""
         return self.decision.found
 
 
@@ -223,6 +230,7 @@ async def _answer(
 async def accept(
     db: AsyncSession, *, recommendation_id: uuid.UUID, session_id: uuid.UUID, movie_id: int
 ) -> None:
+    """Record that the user is going to watch this. Does not check ownership."""
     await decisions_repo.record_feedback(
         db,
         recommendation_id=recommendation_id,
@@ -241,6 +249,11 @@ async def reject(
     reason: str,
     note: str | None = None,
 ) -> None:
+    """Record why the user turned this down. Does not check ownership.
+
+    The reason is the most useful signal the app collects, which is why it is required
+    rather than optional.
+    """
     await decisions_repo.record_feedback(
         db,
         recommendation_id=recommendation_id,
@@ -289,6 +302,16 @@ async def reject_and_next(
     reason: str,
     note: str | None = None,
 ) -> DecisionOutcome:
+    """Turn down the current suggestion and answer the same request again.
+
+    Verifies ownership first, then records the verdict *before* re-deciding, so the
+    rejected film is excluded from the next pass.
+
+    Raises:
+        RequestNotFound: the request does not exist, or belongs to another session.
+        RecommendationMismatch: the recommendation belongs to a different request.
+        AlreadyDecided: this recommendation was already accepted or rejected.
+    """
     row = await _owned_request(db, request_id=request_id, session_id=session_id)
     recommendation = await _owned_recommendation(
         db, request_id=request_id, recommendation_id=recommendation_id
@@ -311,6 +334,13 @@ async def accept_recommendation(
     session_id: uuid.UUID,
     recommendation_id: uuid.UUID,
 ) -> MovieView:
+    """Accept the current suggestion, returning it for a confirmation screen.
+
+    Raises:
+        RequestNotFound: the request does not exist, or belongs to another session.
+        RecommendationMismatch: the recommendation belongs to a different request.
+        AlreadyDecided: this recommendation was already accepted or rejected.
+    """
     row = await _owned_request(db, request_id=request_id, session_id=session_id)
     recommendation = await _owned_recommendation(
         db, request_id=request_id, recommendation_id=recommendation_id
@@ -331,6 +361,12 @@ async def accept_recommendation(
 
 @dataclass(slots=True)
 class DecisionState:
+    """A request's current standing.
+
+    `status` is "empty" before anything was suggested, then "pending" until the user
+    rules on it, then "accepted" or "rejected".
+    """
+
     request_id: uuid.UUID
     attempt: int
     status: str

@@ -32,11 +32,19 @@ from app.db.base import Base
 
 
 class FeedbackAction(StrEnum):
+    """What the user did with a suggestion."""
+
     ACCEPTED = "accepted"
     REJECTED = "rejected"
 
 
 class RejectReason(StrEnum):
+    """Why a suggestion was turned down.
+
+    A closed set rather than free text, so the reasons can be counted — "too_long"
+    appearing often against a two-hour limit would mean the runtime weight is wrong.
+    """
+
     ALREADY_SEEN = "already_seen"
     NOT_IN_THE_MOOD = "not_in_the_mood"
     TOO_LONG = "too_long"
@@ -57,6 +65,8 @@ def _enum_values(enum_cls: type[StrEnum]) -> list[str]:
 
 
 class Provider(Base):
+    """A streaming service. Keyed by TMDb's id so availability rows can reference it."""
+
     __tablename__ = "providers"
 
     # TMDb's own id, not ours: 8 = Netflix, 9 = Amazon Prime Video.
@@ -68,6 +78,8 @@ class Provider(Base):
 
 
 class Genre(Base):
+    """A TMDb genre. Nineteen of them, seeded from the API."""
+
     __tablename__ = "genres"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=False)
@@ -75,6 +87,13 @@ class Genre(Base):
 
 
 class Movie(Base):
+    """A cached TMDb movie.
+
+    Rebuildable from the API at any time, so nothing here is authoritative. Its value is
+    a stable foreign key for recommendations, a fallback when TMDb is unreachable, and a
+    place to keep runtimes that cost a request to learn.
+    """
+
     __tablename__ = "movies"
 
     tmdb_id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=False)
@@ -108,6 +127,8 @@ class Movie(Base):
 
 
 class MovieGenre(Base):
+    """Join table: which genres a movie is tagged with."""
+
     __tablename__ = "movie_genres"
 
     movie_id: Mapped[int] = mapped_column(
@@ -121,6 +142,12 @@ class MovieGenre(Base):
 
 
 class MovieProvider(Base):
+    """Which service carries a movie, in which region, on what terms.
+
+    Region and monetization type are part of the key because the same film can be on
+    subscription in one country and rental-only in another.
+    """
+
     __tablename__ = "movie_providers"
 
     movie_id: Mapped[int] = mapped_column(
@@ -143,6 +170,12 @@ class MovieProvider(Base):
 
 
 class Session(Base):
+    """An anonymous browser. The id is minted client-side and kept in localStorage.
+
+    This is the piece that would have to be replaced by accounts to let two people
+    decide together, since two phones need to reach the same decision.
+    """
+
     __tablename__ = "sessions"
 
     id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, default=uuid.uuid4)
@@ -174,6 +207,12 @@ class DecisionRequestRow(Base):
 
 
 class Recommendation(Base):
+    """One movie offered in answer to a request.
+
+    `attempt` counts up as the user rejects: attempt 1 is the first suggestion, 2 the
+    next, and the unique index on (request_id, attempt) keeps that sequence honest.
+    """
+
     __tablename__ = "recommendations"
 
     id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, default=uuid.uuid4)

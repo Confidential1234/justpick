@@ -15,12 +15,14 @@ from app.services.clients import close_tmdb_client
 
 @asynccontextmanager
 async def lifespan(app: FastAPI) -> AsyncIterator[None]:
+    """Release the TMDb connection pool and the database engine on shutdown."""
     yield
     await close_tmdb_client()
     await dispose_engine()
 
 
 def create_app() -> FastAPI:
+    """Build the application: CORS, routers, and the shared error handlers."""
     settings = get_settings()
     app = FastAPI(
         title="JustPick",

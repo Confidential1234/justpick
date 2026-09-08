@@ -37,6 +37,11 @@ def _connect_args(url: str) -> dict[str, object]:
 
 
 def get_engine() -> AsyncEngine | None:
+    """The shared engine, created on first use, or None if no database is configured.
+
+    Returning None rather than raising is deliberate: the decision engine and the health
+    check both work without a database, and should not be blocked by its absence.
+    """
     global _engine, _sessionmaker
     settings = get_settings()
     if settings.database_url is None:
@@ -67,6 +72,12 @@ async def get_session() -> AsyncIterator[AsyncSession]:
 
 
 async def ping_database() -> DatabaseStatus:
+    """Check the database for the health endpoint. Reports rather than raises.
+
+    Returns:
+        "ok", "unavailable" if the connection failed, or "not_configured" if there is no
+        DATABASE_URL at all.
+    """
     engine = get_engine()
     if engine is None:
         return "not_configured"
@@ -79,6 +90,7 @@ async def ping_database() -> DatabaseStatus:
 
 
 async def dispose_engine() -> None:
+    """Close the connection pool and reset state. Called on shutdown and between tests."""
     global _engine, _sessionmaker
     if _engine is not None:
         await _engine.dispose()

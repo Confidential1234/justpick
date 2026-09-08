@@ -31,6 +31,7 @@ _RELAXATION = {
 
 
 def movie_out(view: MovieView) -> MovieOut:
+    """Convert a service-layer view into the wire model."""
     return MovieOut(
         tmdb_id=view.tmdb_id,
         title=view.title,
@@ -77,6 +78,7 @@ def why(
 
 
 def highlights_out(highlights: tuple[Highlight, ...]) -> list[HighlightOut]:
+    """Expose the score components that drove the pick, for debugging and transparency."""
     return [
         HighlightOut(component=h.component, contribution=round(h.contribution, 4))
         for h in highlights

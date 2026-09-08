@@ -51,6 +51,11 @@ def rank(
 
 
 def band_size(candidate_count: int) -> int:
+    """How many of the top-ranked candidates to draw from.
+
+    Never larger than the pool, and never smaller than MIN_BAND unless there are
+    genuinely fewer candidates than that.
+    """
     if candidate_count <= 0:
         return 0
     return min(candidate_count, max(MIN_BAND, math.ceil(candidate_count * BAND_FRACTION)))

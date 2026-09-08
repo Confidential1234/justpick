@@ -16,6 +16,8 @@ router = APIRouter(tags=["meta"])
 
 
 class HealthResponse(BaseModel):
+    """Liveness report. `database` is informational, not a pass/fail."""
+
     status: str
     version: str
     env: str
@@ -24,6 +26,7 @@ class HealthResponse(BaseModel):
 
 @router.get("/health", response_model=HealthResponse)
 async def health() -> HealthResponse:
+    """Report that the process is up, and whether the database is reachable."""
     settings = get_settings()
     return HealthResponse(
         status="ok",

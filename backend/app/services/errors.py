@@ -5,7 +5,7 @@ The API layer decides what each becomes on the wire.
 
 
 class ServiceError(Exception):
-    pass
+    """Base class for expected service failures. Catching this catches all of them."""
 
 
 class RequestNotFound(ServiceError):

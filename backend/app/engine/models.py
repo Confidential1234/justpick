@@ -25,12 +25,21 @@ class Constraint(StrEnum):
 
 
 class DecisionReason(StrEnum):
+    """Why a decision turned out the way it did: a movie was found, or nothing qualified."""
+
     OK = "ok"
     NO_CANDIDATES = "no_candidates"
 
 
 @dataclass(frozen=True, slots=True)
 class CandidateMovie:
+    """A movie the engine may return, reduced to only the fields it reasons about.
+
+    `runtime_minutes` is optional because TMDb's discover endpoint does not return it;
+    it is filled in from cache when known. `release_date` is optional because the
+    catalogue is community-maintained and half-populated rows are normal.
+    """
+
     tmdb_id: int
     title: str
     genre_ids: frozenset[int]
@@ -67,6 +76,8 @@ class ScoreBreakdown:
 
 @dataclass(frozen=True, slots=True)
 class ScoredMovie:
+    """A candidate paired with its score, as produced by ranking."""
+
     movie: CandidateMovie
     breakdown: ScoreBreakdown
 
@@ -85,6 +96,12 @@ class Highlight:
 
 @dataclass(frozen=True, slots=True)
 class Decision:
+    """The engine's answer: one movie, or an explanation that nothing qualified.
+
+    `candidate_count` and `band_size` are reported so the API can say how many options
+    remain, and so a surprising pick can be investigated after the fact.
+    """
+
     reason: DecisionReason
     movie: CandidateMovie | None
     breakdown: ScoreBreakdown | None
@@ -94,4 +111,5 @@ class Decision:
 
     @property
     def found(self) -> bool:
+        """True when a movie was returned."""
         return self.movie is not None

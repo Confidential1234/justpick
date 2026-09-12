@@ -6,6 +6,7 @@ from contextlib import contextmanager
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.engine.constraints import MIN_VOTE_COUNT, RATED_MIN_VOTE_COUNT
 from app.engine.models import CandidateMovie, Constraint, DecisionRequest
 from app.repositories import catalog as repo
 from app.services.errors import UpstreamFailure, UpstreamUnavailable
@@ -39,13 +40,25 @@ def _upstream() -> Iterator[None]:
         raise UpstreamFailure(str(exc)) from exc
 
 
-def _filters(request: DecisionRequest, region: str = "US") -> DiscoverFilters:
+def discover_filters(request: DecisionRequest, region: str = "US") -> DiscoverFilters:
+    """Translate a decision request into TMDb's query vocabulary.
+
+    Public so that tooling builds the query the same way the service does — a second
+    copy of this mapping is how a script ends up reporting a filter the app is not
+    actually sending.
+    """
     return DiscoverFilters(
         provider_ids=request.provider_ids,
         genre_ids=request.genre_ids,
         max_runtime=request.max_runtime,
         min_rating=request.min_rating,
         min_year=request.min_year,
+        # Mirror the engine's floor, so the shortlist TMDb returns is one we would
+        # actually accept. Sending the lower floor would spend candidates on films the
+        # vote check eliminates the moment they arrive.
+        min_vote_count=(
+            MIN_VOTE_COUNT if request.min_rating is None else RATED_MIN_VOTE_COUNT
+        ),
         region=region,
     )
 
@@ -76,7 +89,7 @@ async def fetch_candidates(
     chosen film records one, so that component does progressively more work as the cache
     warms rather than being permanently inert.
     """
-    filters = _filters(request, region)
+    filters = discover_filters(request, region)
     with _upstream():
         first = await client.discover(filters, page=1)
         remaining = range(2, min(PAGES, first.total_pages) + 1)
@@ -124,7 +137,7 @@ async def relaxation_counts(
     total_results, which is both exact and bounded at three calls.
     """
     variants: dict[Constraint, DiscoverFilters] = {}
-    base = _filters(request, region)
+    base = discover_filters(request, region)
 
     if request.min_rating is not None:
         variants[Constraint.RATING] = DiscoverFilters(**{**vars_of(base), "min_rating": None})

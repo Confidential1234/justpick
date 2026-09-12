@@ -6,6 +6,7 @@ import pytest
 
 from app.engine.constraints import (
     MIN_VOTE_COUNT,
+    RATED_MIN_VOTE_COUNT,
     counts_if_relaxed,
     failures,
     survivors,
@@ -46,6 +47,54 @@ def test_rating_floor_eliminates_only_when_requested(today: date) -> None:
     assert failures(dim, request(min_rating=7.0), NO_EXCLUSIONS, today) == frozenset(
         {Constraint.RATING}
     )
+
+
+class TestRatingGate:
+    """The rating filter compares the raw score; reliability is a separate question.
+
+    These two jobs were briefly done by one number — the shrunk rating gated *and*
+    ranked — and that made the filter dishonest: a film TMDb plainly calls 8.2 was
+    rejected from an "8+" search because an adjustment the user cannot see took it to
+    7.78. Shrinking is right for ordering and wrong for gating.
+    """
+
+    def test_the_filter_uses_the_score_the_user_can_see(self, today: date) -> None:
+        """8.2 from 1,700 votes shrinks to about 7.8, but the user asked for 8+."""
+        real = movie(vote_average=8.2, vote_count=1_700)
+        assert failures(real, request(min_rating=8.0), NO_EXCLUSIONS, today) == frozenset()
+
+    def test_a_thin_sample_is_stopped_by_votes_not_by_its_rating(self, today: date) -> None:
+        """The 9.9-from-143-votes case. Its rating qualifies; its evidence does not."""
+        inflated = movie(vote_average=9.9, vote_count=143)
+        assert failures(inflated, request(min_rating=8.0), NO_EXCLUSIONS, today) == frozenset(
+            {Constraint.VOTE_COUNT}
+        )
+
+    def test_the_stricter_vote_floor_applies_only_when_a_rating_is_asked_for(
+        self, today: date
+    ) -> None:
+        """No rating filter means no claim about quality, so no extra evidence needed."""
+        thin = movie(vote_average=9.9, vote_count=143)
+        assert failures(thin, request(), NO_EXCLUSIONS, today) == frozenset()
+
+    @pytest.mark.parametrize(
+        ("votes", "expected"),
+        [
+            (RATED_MIN_VOTE_COUNT - 1, frozenset({Constraint.VOTE_COUNT})),
+            (RATED_MIN_VOTE_COUNT, frozenset()),
+        ],
+    )
+    def test_the_rated_floor_boundary(
+        self, votes: int, expected: frozenset[Constraint], today: date
+    ) -> None:
+        candidate = movie(vote_average=8.5, vote_count=votes)
+        assert failures(candidate, request(min_rating=8.0), NO_EXCLUSIONS, today) == expected
+
+    def test_a_low_rating_still_fails_however_many_votes_it_has(self, today: date) -> None:
+        popular_but_mediocre = movie(vote_average=6.4, vote_count=90_000)
+        assert failures(
+            popular_but_mediocre, request(min_rating=8.0), NO_EXCLUSIONS, today
+        ) == frozenset({Constraint.RATING})
 
 
 class TestReleaseYearFloor:

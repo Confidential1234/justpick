@@ -16,11 +16,11 @@ from datetime import date
 from app.config import get_settings
 from app.db.session import dispose_engine, get_engine, get_sessionmaker
 from app.engine import DecisionRequest, decide
-from app.engine.constraints import MIN_VOTE_COUNT, failures
+from app.engine.constraints import MIN_VOTE_COUNT, RATED_MIN_VOTE_COUNT, failures
 from app.engine.decide import BAND_FRACTION, MIN_BAND, band_size, rank
 from app.engine.scoring import WEIGHTS, adjusted_rating
 from app.services import catalog
-from app.tmdb.client import NETFLIX, PRIME_VIDEO, DiscoverFilters, TMDbClient
+from app.tmdb.client import NETFLIX, PRIME_VIDEO, TMDbClient
 
 TODAY = date.today()
 SEED = "trace-session:1"
@@ -75,13 +75,8 @@ async def run() -> int:
 
         # ---------------------------------------------------------------- 2
         banner(2, "Ask TMDb for candidates  (services/catalog.py -> tmdb/client.py)")
-        filters = DiscoverFilters(
-            provider_ids=request.provider_ids,
-            genre_ids=request.genre_ids,
-            max_runtime=request.max_runtime,
-            min_rating=request.min_rating,
-            min_year=request.min_year,
-        )
+        # Built by the service, not rebuilt here, so what this prints is what gets sent.
+        filters = catalog.discover_filters(request)
         print("  the query TMDb actually receives:")
         for key, value in sorted(filters.as_params().items()):
             print(f"    {key:<32}{value}")
@@ -112,7 +107,11 @@ async def run() -> int:
         for reason, count in tally.most_common():
             print(f"    -{count:>3}  failed {reason}")
         print(f"  {len(eligible)} eligible\n")
-        print(f"  Note: vote_count < {MIN_VOTE_COUNT} is our own quality floor, not the user's.")
+        floor = MIN_VOTE_COUNT if request.min_rating is None else RATED_MIN_VOTE_COUNT
+        because = "no rating floor was set" if request.min_rating is None else (
+            f"a rating floor of {request.min_rating} was asked for"
+        )
+        print(f"  Note: the vote floor here is {floor}, because {because}.")
         print("  A movie can fail several rules at once, so these do not sum to the drop.")
 
         if not eligible:

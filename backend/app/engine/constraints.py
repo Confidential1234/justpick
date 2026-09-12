@@ -13,12 +13,16 @@ from collections.abc import Iterable, Sequence
 from datetime import date
 
 from app.engine.models import CandidateMovie, Constraint, DecisionRequest
-from app.engine.scoring import adjusted_rating
 
-# A sanity floor only. The real defence against an inflated average is the shrunk rating
-# in scoring.py, which needs no arbitrary cutoff; this just drops films with essentially
-# no ratings at all.
+# Drops films nobody has rated at all. Deliberately low: with no rating floor set, the
+# user has made no claim about quality, so neither should we.
 MIN_VOTE_COUNT = 100
+
+# Applied instead when the user *does* set a rating floor. Asking for "8+" is a claim
+# about quality and deserves evidence behind it — a 9.9 from 143 voters is not a 9.9.
+# Chosen rather than derived: it clears the thin-sample cases with margin while sitting
+# below the bottom decile of popular films (~559 votes), so it stays permissive.
+RATED_MIN_VOTE_COUNT = 300
 
 
 def failures(
@@ -39,14 +43,18 @@ def failures(
     if movie.runtime_minutes is not None and movie.runtime_minutes > request.max_runtime:
         failed.add(Constraint.RUNTIME)
 
-    # Compared against the shrunk rating, not the raw one, so "8+" means a film that is
-    # genuinely rated 8 rather than one with a 9.9 from 143 voters. Shrinkage only ever
-    # lowers an above-average score, so TMDb's server-side vote_average.gte pre-filter
-    # cannot hide anything this would have accepted.
-    if request.min_rating is not None and adjusted_rating(movie) < request.min_rating:
+    # Compared against the raw score, because that is the number the user is choosing
+    # from — picking "8+" should mean what TMDb displays. Reliability is a separate
+    # question, answered by the vote floor below rather than by quietly adjusting the
+    # figure the user asked about.
+    #
+    # The shrunk rating still decides *ordering* in scoring.py. Splitting the two is the
+    # point: a statistic can be right for ranking and wrong for filtering.
+    if request.min_rating is not None and movie.vote_average < request.min_rating:
         failed.add(Constraint.RATING)
 
-    if movie.vote_count < MIN_VOTE_COUNT:
+    required_votes = MIN_VOTE_COUNT if request.min_rating is None else RATED_MIN_VOTE_COUNT
+    if movie.vote_count < required_votes:
         failed.add(Constraint.VOTE_COUNT)
 
     # No genres selected means "anything", not "nothing".
